@@ -1,8 +1,15 @@
 """Core agent responsible for drafting email."""
 
 from langchain_core.runnables import RunnableConfig
-from langchain_openai import ChatOpenAI
+from langchain_groq import ChatGroq
+from groq import Groq
 from langgraph.store.base import BaseStore
+import uuid
+import instructor
+from pydantic import BaseModel, Field
+from typing import List, Optional
+from langsmith import traceable
+from langgraph_sdk import get_client
 
 from eaia.schemas import (
     State,
@@ -15,6 +22,8 @@ from eaia.schemas import (
     email_template,
 )
 from eaia.main.config import get_config
+
+LGC = get_client()
 
 EMAIL_WRITING_INSTRUCTIONS = """You are {full_name}'s executive assistant. You are a top-notch executive assistant who cares about {name} performing as well as possible.
 
@@ -78,16 +87,37 @@ Here is the email thread. Note that this is the full email thread. Pay special a
 
 {email}"""
 
+# Define tool schemas
+class Question(BaseModel):
+    content: str = Field(description="Question to ask the user")
 
+class ResponseEmailDraft(BaseModel):
+    content: str = Field(description="Content of the email")
+    new_recipients: List[str] = Field(default_factory=list)
+
+class SendCalendarInvite(BaseModel):
+    title: str
+    start_time: str
+    end_time: str
+    attendees: List[str]
+
+class ToolCall(BaseModel):
+    tool: str = Field(description="The tool to use: Question, ResponseEmailDraft, or SendCalendarInvite")
+    args: dict = Field(description="Arguments for the tool")
+
+class AgentResponse(BaseModel):
+    tool_calls: List[ToolCall]
+
+@traceable
 async def draft_response(state: State, config: RunnableConfig, store: BaseStore):
     """Write an email to a customer."""
-    model = config["configurable"].get("model", "gpt-4o")
-    llm = ChatOpenAI(
-        model=model,
-        temperature=0,
-        parallel_tool_calls=False,
-        tool_choice="required",
-    )
+    model = config["configurable"].get("model", "llama-3.3-70b-versatile")
+    
+    # Use instructor for structured output
+    client = instructor.patch(Groq(
+        api_key="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"
+    ))
+    
     tools = [
         NewEmailDraft,
         ResponseEmailDraft,
@@ -141,14 +171,35 @@ async def draft_response(state: State, config: RunnableConfig, store: BaseStore)
         ),
     )
 
-    model = llm.bind_tools(tools)
-    messages = [{"role": "user", "content": input_message}] + messages
-    i = 0
-    while i < 5:
-        response = await model.ainvoke(messages)
-        if len(response.tool_calls) != 1:
-            i += 1
-            messages += [{"role": "user", "content": "Please call a valid tool call."}]
-        else:
-            break
-    return {"draft": response, "messages": [response]}
+    # Add tool descriptions to the prompt
+    tool_descriptions = """
+    Available actions:
+    1. Ask a question (use 'QUESTION: your question here')
+    2. Draft a response email (use 'RESPONSE: your email content here')
+    3. Schedule a meeting (use 'SCHEDULE: meeting details here')
+    4. Create new email (use 'NEW_EMAIL: content here')
+    5. Check calendar (use 'CALENDAR: query here')
+    
+    Format your response starting with the action type in caps.
+    """
+    
+    full_prompt = f"{tool_descriptions}\n\n{input_message}"
+    response = await client.chat.completions.create(
+        model=model,
+        response_model=AgentResponse,
+        messages=[{"role": "user", "content": full_prompt}],
+        temperature=0
+    )
+    
+    # Convert to LangChain format
+    tool_response = {
+        "role": "assistant",
+        "content": "",
+        "tool_calls": [{
+            "id": str(uuid.uuid4()),
+            "name": tool_call.tool,
+            "args": tool_call.args
+        } for tool_call in response.tool_calls]
+    }
+    
+    return {"draft": tool_response, "messages": [tool_response]}

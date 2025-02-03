@@ -1,7 +1,53 @@
-# Byte-compiled / optimized / DLL files
+# Environment variables
+.env
+*.env
+
+# Secrets
+.secrets/
+*/.secrets/
+**/.secrets/
+
+# Python
 __pycache__/
 *.py[cod]
 *$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual Environment
+venv/
+ENV/
+env/
+.venv/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Byte-compiled / optimized / DLL files
+*.manifest
+*.spec
 
 # C extensions
 *.so
@@ -157,6 +203,3 @@ cython_debug/
 
 # Artifacts from running LangGraph Server locally
 .langgraph_api/
-
-# Secrets for Google Workspace (Gmail, GCal)
-.secrets/

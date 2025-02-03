@@ -9,6 +9,8 @@ from langgraph.store.base import BaseStore
 from typing import TypedDict, Literal, Union, Optional
 from langgraph_sdk import get_client
 from eaia.main.config import get_config
+from langgraph.types import RunnableConfig
+from langchain_core.messages import HumanMessage
 
 LGC = get_client()
 
@@ -71,13 +73,21 @@ async def save_email(state: State, config, store: BaseStore, status: str):
 
 
 @traceable
-async def send_message(state: State, config, store):
-    prompt_config = get_config(config)
-    memory = prompt_config["memory"]
-    user = prompt_config['name']
-    tool_call = state["messages"][-1].tool_calls[0]
-    request: HumanInterrupt = {
-        "action_request": {"action": tool_call["name"], "args": tool_call["args"]},
+async def send_message(state: State, config: RunnableConfig):
+    """Send a message to the human."""
+    # Get the action request from either the state or the messages
+    if "action_request" in state:
+        action_request = state["action_request"]
+    else:
+        # Extract from the last message's tool calls
+        last_message = state["messages"][-1]
+        action_request = {
+            "action": last_message.tool_calls[0]["name"],
+            "args": last_message.tool_calls[0]["args"]
+        }
+    
+    request = {
+        "action_request": action_request,
         "config": {
             "allow_ignore": True,
             "allow_respond": True,
@@ -86,54 +96,14 @@ async def send_message(state: State, config, store):
         },
         "description": _generate_email_markdown(state),
     }
+    
     response = interrupt([request])[0]
-    _email_template = email_template.format(
-        email_thread=state["email"]["page_content"],
-        author=state["email"]["from_email"],
-        subject=state["email"]["subject"],
-        to=state["email"].get("to_email", ""),
-    )
-    if response["type"] == "response":
-        msg = {
-            "type": "tool",
-            "name": tool_call["name"],
-            "content": response["args"],
-            "tool_call_id": tool_call["id"],
-        }
-        if memory:
-            await save_email(state, config, store, "email")
-            rewrite_state = {
-                "messages": [
-                    {
-                        "role": "user",
-                        "content": f"Draft a response to this email:\n\n{_email_template}",
-                    }
-                ]
-                + state["messages"],
-                "feedback": f"{user} responded in this way: {response['args']}",
-                "prompt_types": ["background"],
-                "assistant_key": config["configurable"].get("assistant_id", "default"),
-            }
-            await LGC.runs.create(None, "multi_reflection_graph", input=rewrite_state)
-    elif response["type"] == "ignore":
-        msg = {
-            "role": "assistant",
-            "content": "",
-            "id": state["messages"][-1].id,
-            "tool_calls": [
-                {
-                    "id": tool_call["id"],
-                    "name": "Ignore",
-                    "args": {"ignore": True},
-                }
-            ],
-        }
-        if memory:
-            await save_email(state, config, store, "no")
-    else:
-        raise ValueError(f"Unexpected response: {response}")
-
-    return {"messages": [msg]}
+    
+    return {
+        "messages": [
+            HumanMessage(content=response["args"])
+        ]
+    }
 
 
 @traceable

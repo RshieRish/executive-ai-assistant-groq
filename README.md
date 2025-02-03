@@ -1,3 +1,85 @@
+# Executive AI Assistant with Groq
+
+An AI executive assistant that manages your email inbox using Groq's powerful language models. This assistant can triage emails, draft responses, find meeting times, and manage your calendar.
+
+## Models Used
+- Primary Model: `deepseek-r1-distill-llama-70b` (via Groq)
+- Used for: Email triage, response drafting, and meeting scheduling
+
+## Features
+- Email Triage: Automatically categorizes and prioritizes incoming emails
+- Response Generation: Drafts contextually appropriate responses
+- Meeting Scheduling: Finds suitable meeting times based on calendar availability
+- Calendar Management: Integrates with Google Calendar for scheduling
+
+## Prerequisites
+- Python 3.9+
+- Groq API Key
+- Google Workspace (for Gmail and Calendar access)
+
+## Setup
+
+1. Clone the repository:
+```bash
+git clone https://github.com/RshieRish/executive-ai-assistant-groq.git
+cd executive-ai-assistant-groq
+```
+
+2. Install dependencies:
+```bash
+pip install -e .
+```
+
+3. Set up environment variables:
+Create a `.env` file with:
+```
+GROQ_API_KEY=your_groq_api_key
+LANGCHAIN_TRACING_V2=true
+LANGCHAIN_ENDPOINT=https://api.smith.langchain.com
+LANGCHAIN_API_KEY=your_langchain_api_key
+```
+
+4. Set up Google Workspace credentials:
+- Create a project in Google Cloud Console
+- Enable Gmail and Calendar APIs
+- Create OAuth 2.0 credentials
+- Save the credentials in `eaia/main/.secrets/secrets.json`
+- Run the authentication flow to generate `token.json`
+
+## Usage
+
+1. Start the LangGraph server:
+```bash
+langgraph dev
+```
+
+2. Run the email ingest script:
+```bash
+python scripts/run_ingest.py --minutes-since 1440
+```
+
+3. Access the Agent Inbox at:
+https://smith.langchain.com/studio/?baseUrl=http://localhost:2024
+
+## Configuration
+
+Customize the assistant's behavior in `eaia/main/config.yaml`:
+- Email preferences
+- Response style
+- Meeting scheduling preferences
+- Triage rules
+
+## Security Note
+- Never commit `.env` files or contents of `.secrets/` directory
+- Keep your API keys and credentials secure
+- Use environment variables for sensitive information
+
+## License
+MIT License
+
+## Contributing
+Contributions welcome! Please read the contributing guidelines before submitting PRs.
+
 # Executive AI Assistant
 
 Executive AI Assistant (EAIA) is an AI agent that attempts to do the job of an Executive Assistant (EA).

@@ -1,16 +1,25 @@
 """Agent responsible for managing calendar and finding meeting time."""
 
 from datetime import datetime
+from groq import Groq
+import instructor
+from pydantic import BaseModel, Field
+from typing import List
+import uuid
+from langsmith import traceable
+from langgraph_sdk import get_client
 
 from langchain_core.messages import ToolMessage
 from langchain_core.runnables import RunnableConfig
-from langchain_openai import ChatOpenAI
+from langchain_groq import ChatGroq
 from langgraph.prebuilt import create_react_agent
 
 from eaia.gmail import get_events_for_days
 from eaia.schemas import State
 
 from eaia.main.config import get_config
+
+LGC = get_client()
 
 meeting_prompts = """You are {full_name}'s executive assistant. You are a top-notch executive assistant who cares about {name} performing as well as possible.
 
@@ -62,12 +71,24 @@ Subject: {subject}
 
 {email_thread}"""
 
+class AvailabilityResponse(BaseModel):
+    available_slots: List[str] = Field(description="List of available time slots")
+    message: str = Field(description="Message about availability")
 
+@traceable
 async def find_meeting_time(state: State, config: RunnableConfig):
     """Write an email to a customer."""
-    model = config["configurable"].get("model", "gpt-4o")
-    llm = ChatOpenAI(model=model, temperature=0)
-    agent = create_react_agent(llm, [get_events_for_days])
+    model = config["configurable"].get("model", "llama-3.3-70b-versatile")
+    
+    client = instructor.patch(Groq(
+        api_key="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"
+    ))
+    
+    agent = create_react_agent(ChatGroq(
+        model=model,
+        temperature=0,
+        api_key="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"
+    ), [get_events_for_days])
     current_date = datetime.now()
     prompt_config = get_config(config)
     input_message = meeting_prompts.format(
@@ -82,15 +103,21 @@ async def find_meeting_time(state: State, config: RunnableConfig):
     messages = state.get("messages") or []
     # we do this because theres currently a tool call just for routing
     messages = messages[:-1]
-    result = await agent.ainvoke(
-        {"messages": [{"role": "user", "content": input_message}] + messages}
+    response = await client.chat.completions.create(
+        model=model,
+        response_model=AvailabilityResponse,
+        messages=[{"role": "user", "content": input_message}] + messages,
+        temperature=0
     )
-    prediction = state["messages"][-1]
-    tool_call = prediction.tool_calls[0]
+    
+    # Generate a unique ID for the tool call
+    tool_call_id = str(uuid.uuid4())
+    
     return {
         "messages": [
             ToolMessage(
-                content=result["messages"][-1].content, tool_call_id=tool_call["id"]
+                content=response.message,
+                tool_call_id=tool_call_id
             )
         ]
     }

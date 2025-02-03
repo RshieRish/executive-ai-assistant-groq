@@ -1,9 +1,14 @@
 """Agent responsible for triaging the email, can either ignore it, try to respond, or notify user."""
 
 from langchain_core.runnables import RunnableConfig
-from langchain_openai import ChatOpenAI
+from langchain_groq import ChatGroq
 from langchain_core.messages import RemoveMessage
 from langgraph.store.base import BaseStore
+import instructor
+from groq import Groq
+from pydantic import BaseModel
+from langsmith import traceable
+from langgraph_sdk import get_client
 
 from eaia.schemas import (
     State,
@@ -12,6 +17,12 @@ from eaia.schemas import (
 from eaia.main.fewshot import get_few_shot_examples
 from eaia.main.config import get_config
 
+LGC = get_client()
+
+# Add response model
+class TriageResponse(BaseModel):
+    response: str
+    logic: str
 
 triage_prompt = """You are {full_name}'s executive assistant. You are a top-notch executive assistant who cares about {name} performing as well as possible.
 
@@ -44,8 +55,12 @@ Subject: {subject}
 
 
 async def triage_input(state: State, config: RunnableConfig, store: BaseStore):
-    model = config["configurable"].get("model", "gpt-4o")
-    llm = ChatOpenAI(model=model, temperature=0)
+    model = config["configurable"].get("model", "deepseek-r1-distill-llama-70b")
+    llm = ChatGroq(
+        model=model,
+        temperature=0,
+        api_key="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"
+    )
     examples = await get_few_shot_examples(state["email"], store, config)
     prompt_config = get_config(config)
     input_message = triage_prompt.format(
@@ -61,10 +76,12 @@ async def triage_input(state: State, config: RunnableConfig, store: BaseStore):
         triage_email=prompt_config["triage_email"],
         triage_notify=prompt_config["triage_notify"],
     )
+    
     model = llm.with_structured_output(RespondTo).bind(
         tool_choice={"type": "function", "function": {"name": "RespondTo"}}
     )
     response = await model.ainvoke(input_message)
+    
     if len(state["messages"]) > 0:
         delete_messages = [RemoveMessage(id=m.id) for m in state["messages"]]
         return {"triage": response, "messages": delete_messages}

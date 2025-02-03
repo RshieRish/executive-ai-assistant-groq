@@ -1,9 +1,9 @@
 from langgraph.store.base import BaseStore
-from langchain_openai import ChatOpenAI
-from langchain_anthropic import ChatAnthropic
+from langchain_groq import ChatGroq
 from typing import TypedDict, Optional
 from langgraph.graph import StateGraph, START, END, MessagesState
 from langgraph.types import Command, Send
+import os
 
 TONE_INSTRUCTIONS = "Only update the prompt to include instructions on the **style and tone and format** of the response. Do NOT update the prompt to include anything about the actual content - only the style and tone and format. The user sometimes responds differently to different types of people - take that into account, but don't be too specific."
 RESPONSE_INSTRUCTIONS = "Only update the prompt to include instructions on the **content** of the response. Do NOT update the prompt to include anything about the tone or style or format of the response."
@@ -62,8 +62,12 @@ You should return the full prompt, so if there's anything from before that you w
 
 
 async def update_general(state: ReflectionState, config, store: BaseStore):
-    reflection_model = ChatOpenAI(model="o1", disable_streaming=True)
-    # reflection_model = ChatAnthropic(model="claude-3-5-sonnet-latest")
+    reflection_model = ChatGroq(
+        model="deepseek-r1-distill-llama-70b",
+        temperature=0,
+        api_key=os.getenv("GROQ_API_KEY"),
+        disable_streaming=True
+    )
     namespace = (state["assistant_key"],)
     key = state["prompt_key"]
     result = await store.aget(namespace, key)
@@ -148,8 +152,12 @@ class MultiMemoryInput(MessagesState):
 
 
 async def determine_what_to_update(state: MultiMemoryInput):
-    reflection_model = ChatOpenAI(model="gpt-4o", disable_streaming=True)
-    reflection_model = ChatAnthropic(model="claude-3-5-sonnet-latest")
+    reflection_model = ChatGroq(
+        model="deepseek-r1-distill-llama-70b",
+        temperature=0,
+        api_key=os.getenv("GROQ_API_KEY"),
+        disable_streaming=True
+    )
     trajectory = get_trajectory_clean(state["messages"])
     types_of_prompts = "\n".join(
         [f"`{p_type}`: {MEMORY_TO_UPDATE[p_type]}" for p_type in state["prompt_types"]]

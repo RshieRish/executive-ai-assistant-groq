@@ -11,8 +11,17 @@
   },
   "store": {
     "index": {
-      "embed": "openai:text-embedding-3-small",
-      "dims": 1536
+      "embed": "huggingface:sentence-transformers/paraphrase-MiniLM-L3-v2",
+      "dims": 384
     }
+  },
+  "langchain": {
+    "verbose": true,
+    "debug": true
+  },
+  "studio": {
+    "enabled": true,
+    "host": "127.0.0.1",
+    "port": 2024
   }
 }

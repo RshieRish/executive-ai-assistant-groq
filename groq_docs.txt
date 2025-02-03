@@ -1,0 +1,1137 @@
+Chat Completion Models
+The Groq Chat Completions API processes a series of messages and generates output responses. These models can perform multi-turn discussions or tasks that require only one interaction.
+
+For details about the parameters, visit the reference page.
+JSON mode (beta)
+JSON mode is a beta feature that guarantees all chat completions are valid JSON.
+Usage:
+Set "response_format": {"type": "json_object"} in your chat completion request
+Add a description of the desired JSON structure within the system prompt (see below for example system prompts)
+Recommendations for best beta results:
+Mixtral performs best at generating JSON, followed by Gemma, then Llama
+Use pretty-printed JSON instead of compact JSON
+Keep prompts concise
+Beta Limitations:
+Does not support streaming
+Does not support stop sequences
+Error Code:
+Groq will return a 400 error with an error code of json_validate_failed if JSON generation fails.
+Example system prompts:
+
+
+You are a legal advisor who summarizes documents in JSON
+
+
+You are a data analyst API capable of sentiment analysis that responds in JSON.  The JSON schema should include
+{
+  "sentiment_analysis": {
+    "sentiment": "string (positive, negative, neutral)",
+    "confidence_score": "number (0-1)"
+    # Include additional fields as required
+  }
+}
+Generating Chat Completions with groq SDK
+Code Overview
+Python
+JavaScript
+
+pip install groq
+
+Performing a basic Chat Completion
+
+1from groq import Groq
+2
+3client = Groq()
+4
+5chat_completion = client.chat.completions.create(
+6    #
+7    # Required parameters
+8    #
+9    messages=[
+10        # Set an optional system message. This sets the behavior of the
+11        # assistant and can be used to provide specific instructions for
+12        # how it should behave throughout the conversation.
+13        {
+14            "role": "system",
+15            "content": "you are a helpful assistant."
+16        },
+17        # Set a user message for the assistant to respond to.
+18        {
+19            "role": "user",
+20            "content": "Explain the importance of fast language models",
+21        }
+22    ],
+23
+24    # The language model which will generate the completion.
+25    model="llama-3.3-70b-versatile",
+26
+27    #
+28    # Optional parameters
+29    #
+30
+31    # Controls randomness: lowering results in less random completions.
+32    # As the temperature approaches zero, the model will become deterministic
+33    # and repetitive.
+34    temperature=0.5,
+35
+36    # The maximum number of tokens to generate. Requests can use up to
+37    # 32,768 tokens shared between prompt and completion.
+38    max_completion_tokens=1024,
+39
+40    # Controls diversity via nucleus sampling: 0.5 means half of all
+41    # likelihood-weighted options are considered.
+42    top_p=1,
+43
+44    # A stop sequence is a predefined or user-specified text string that
+45    # signals an AI to stop generating content, ensuring its responses
+46    # remain focused and concise. Examples include punctuation marks and
+47    # markers like "[end]".
+48    stop=None,
+49
+50    # If set, partial message deltas will be sent.
+51    stream=False,
+52)
+53
+54# Print the completion returned by the LLM.
+55print(chat_completion.choices[0].message.content)
+
+Streaming a Chat Completion
+To stream a completion, simply set the parameter stream=True. Then the completion function will return an iterator of completion deltas rather than a single, full completion.
+
+
+1from groq import Groq
+2
+3client = Groq()
+4
+5stream = client.chat.completions.create(
+6    #
+7    # Required parameters
+8    #
+9    messages=[
+10        # Set an optional system message. This sets the behavior of the
+11        # assistant and can be used to provide specific instructions for
+12        # how it should behave throughout the conversation.
+13        {
+14            "role": "system",
+15            "content": "you are a helpful assistant."
+16        },
+17        # Set a user message for the assistant to respond to.
+18        {
+19            "role": "user",
+20            "content": "Explain the importance of fast language models",
+21        }
+22    ],
+23
+24    # The language model which will generate the completion.
+25    model="llama-3.3-70b-versatile",
+26
+27    #
+28    # Optional parameters
+29    #
+30
+31    # Controls randomness: lowering results in less random completions.
+32    # As the temperature approaches zero, the model will become deterministic
+33    # and repetitive.
+34    temperature=0.5,
+35
+36    # The maximum number of tokens to generate. Requests can use up to
+37    # 2048 tokens shared between prompt and completion.
+38    max_completion_tokens=1024,
+39
+40    # Controls diversity via nucleus sampling: 0.5 means half of all
+41    # likelihood-weighted options are considered.
+42    top_p=1,
+43
+44    # A stop sequence is a predefined or user-specified text string that
+45    # signals an AI to stop generating content, ensuring its responses
+46    # remain focused and concise. Examples include punctuation marks and
+47    # markers like "[end]".
+48    stop=None,
+49
+50    # If set, partial message deltas will be sent.
+51    stream=True,
+52)
+53
+54# Print the incremental deltas returned by the LLM.
+55for chunk in stream:
+56    print(chunk.choices[0].delta.content, end="")
+
+Performing a Chat Completion with a stop sequence
+
+1from groq import Groq
+2
+3client = Groq()
+4
+5chat_completion = client.chat.completions.create(
+6    #
+7    # Required parameters
+8    #
+9    messages=[
+10        # Set an optional system message. This sets the behavior of the
+11        # assistant and can be used to provide specific instructions for
+12        # how it should behave throughout the conversation.
+13        {
+14            "role": "system",
+15            "content": "you are a helpful assistant."
+16        },
+17        # Set a user message for the assistant to respond to.
+18        {
+19            "role": "user",
+20            "content": "Count to 10.  Your response must begin with \"1, \".  example: 1, 2, 3, ...",
+21        }
+22    ],
+23
+24    # The language model which will generate the completion.
+25    model="llama-3.3-70b-versatile",
+26
+27    #
+28    # Optional parameters
+29    #
+30
+31    # Controls randomness: lowering results in less random completions.
+32    # As the temperature approaches zero, the model will become deterministic
+33    # and repetitive.
+34    temperature=0.5,
+35
+36    # The maximum number of tokens to generate. Requests can use up to
+37    # 2048 tokens shared between prompt and completion.
+38    max_completion_tokens=1024,
+39
+40    # Controls diversity via nucleus sampling: 0.5 means half of all
+41    # likelihood-weighted options are considered.
+42    top_p=1,
+43
+44    # A stop sequence is a predefined or user-specified text string that
+45    # signals an AI to stop generating content, ensuring its responses
+46    # remain focused and concise. Examples include punctuation marks and
+47    # markers like "[end]".
+48    # For this example, we will use ", 6" so that the llm stops counting at 5.
+49    # If multiple stop values are needed, an array of string may be passed,
+50    # stop=[", 6", ", six", ", Six"]
+51    stop=", 6",
+52
+53    # If set, partial message deltas will be sent.
+54    stream=False,
+55)
+56
+57# Print the completion returned by the LLM.
+58print(chat_completion.choices[0].message.content)
+Performing an Async Chat Completion
+Simply use the Async client to enable asyncio
+
+
+1import asyncio
+2
+3from groq import AsyncGroq
+4
+5
+6async def main():
+7    client = AsyncGroq()
+8
+9    chat_completion = await client.chat.completions.create(
+10        #
+11        # Required parameters
+12        #
+13        messages=[
+14            # Set an optional system message. This sets the behavior of the
+15            # assistant and can be used to provide specific instructions for
+16            # how it should behave throughout the conversation.
+17            {
+18                "role": "system",
+19                "content": "you are a helpful assistant."
+20            },
+21            # Set a user message for the assistant to respond to.
+22            {
+23                "role": "user",
+24                "content": "Explain the importance of fast language models",
+25            }
+26        ],
+27
+28        # The language model which will generate the completion.
+29        model="llama-3.3-70b-versatile",
+30
+31        #
+32        # Optional parameters
+33        #
+34
+35        # Controls randomness: lowering results in less random completions.
+36        # As the temperature approaches zero, the model will become
+37        # deterministic and repetitive.
+38        temperature=0.5,
+39
+40        # The maximum number of tokens to generate. Requests can use up to
+41        # 2048 tokens shared between prompt and completion.
+42        max_completion_tokens=1024,
+43
+44        # Controls diversity via nucleus sampling: 0.5 means half of all
+45        # likelihood-weighted options are considered.
+46        top_p=1,
+47
+48        # A stop sequence is a predefined or user-specified text string that
+49        # signals an AI to stop generating content, ensuring its responses
+50        # remain focused and concise. Examples include punctuation marks and
+51        # markers like "[end]".
+52        stop=None,
+53
+54        # If set, partial message deltas will be sent.
+55        stream=False,
+56    )
+57
+58    # Print the completion returned by the LLM.
+59    print(chat_completion.choices[0].message.content)
+60
+61asyncio.run(main())
+Streaming an Async Chat Completion
+
+1import asyncio
+2
+3from groq import AsyncGroq
+4
+5
+6async def main():
+7    client = AsyncGroq()
+8
+9    stream = await client.chat.completions.create(
+10        #
+11        # Required parameters
+12        #
+13        messages=[
+14            # Set an optional system message. This sets the behavior of the
+15            # assistant and can be used to provide specific instructions for
+16            # how it should behave throughout the conversation.
+17            {
+18                "role": "system",
+19                "content": "you are a helpful assistant."
+20            },
+21            # Set a user message for the assistant to respond to.
+22            {
+23                "role": "user",
+24                "content": "Explain the importance of fast language models",
+25            }
+26        ],
+27
+28        # The language model which will generate the completion.
+29        model="llama-3.3-70b-versatile",
+30
+31        #
+32        # Optional parameters
+33        #
+34
+35        # Controls randomness: lowering results in less random completions.
+36        # As the temperature approaches zero, the model will become
+37        # deterministic and repetitive.
+38        temperature=0.5,
+39
+40        # The maximum number of tokens to generate. Requests can use up to
+41        # 2048 tokens shared between prompt and completion.
+42        max_completion_tokens=1024,
+43
+44        # Controls diversity via nucleus sampling: 0.5 means half of all
+45        # likelihood-weighted options are considered.
+46        top_p=1,
+47
+48        # A stop sequence is a predefined or user-specified text string that
+49        # signals an AI to stop generating content, ensuring its responses
+50        # remain focused and concise. Examples include punctuation marks and
+51        # markers like "[end]".
+52        stop=None,
+53
+54        # If set, partial message deltas will be sent.
+55        stream=True,
+56    )
+57
+58    # Print the incremental deltas returned by the LLM.
+59    async for chunk in stream:
+60        print(chunk.choices[0].delta.content, end="")
+61
+62asyncio.run(main())
+JSON Mode
+
+1from typing import List, Optional
+2import json
+3
+4from pydantic import BaseModel
+5from groq import Groq
+6
+7groq = Groq()
+8
+9
+10# Data model for LLM to generate
+11class Ingredient(BaseModel):
+12    name: str
+13    quantity: str
+14    quantity_unit: Optional[str]
+15
+16
+17class Recipe(BaseModel):
+18    recipe_name: str
+19    ingredients: List[Ingredient]
+20    directions: List[str]
+21
+22
+23def get_recipe(recipe_name: str) -> Recipe:
+24    chat_completion = groq.chat.completions.create(
+25        messages=[
+26            {
+27                "role": "system",
+28                "content": "You are a recipe database that outputs recipes in JSON.\n"
+29                # Pass the json schema to the model. Pretty printing improves results.
+30                f" The JSON object must use the schema: {json.dumps(Recipe.model_json_schema(), indent=2)}",
+31            },
+32            {
+33                "role": "user",
+34                "content": f"Fetch a recipe for {recipe_name}",
+35            },
+36        ],
+37        model="llama3-70b-8192",
+38        temperature=0,
+39        # Streaming is not supported in JSON mode
+40        stream=False,
+41        # Enable JSON mode by setting the response format
+42        response_format={"type": "json_object"},
+43    )
+44    return Recipe.model_validate_json(chat_completion.choices[0].message.content)
+45
+46
+47def print_recipe(recipe: Recipe):
+48    print("Recipe:", recipe.recipe_name)
+49
+50    print("\nIngredients:")
+51    for ingredient in recipe.ingredients:
+52        print(
+53            f"- {ingredient.name}: {ingredient.quantity} {ingredient.quantity_unit or ''}"
+54        )
+55    print("\nDirections:")
+56    for step, direction in enumerate(recipe.directions, start=1):
+57        print(f"{step}. {direction}")
+58
+59
+60recipe = get_recipe("apple pie")
+61print_recipe(recipe)
+
+
+Reasoning
+Reasoning models excel at complex problem-solving tasks that require step-by-step analysis, logical deduction, and structured thinking and solution validation. With Groq inference speed, these types of models can deliver instant reasoning capabilities critical for real-time applications.
+Why Speed Matters for Reasoning
+Reasoning models are capable of complex decision making with explicit reasoning chains that are part of the token output and used for decision-making, which make low-latency and fast inference essential. Complex problems often require multiple chains of reasoning tokens where each step build on previous results. Low latency compounds benefits across reasoning chains and shaves off minutes of reasoning to a response in seconds.
+Supported Model
+MODEL ID	MODEL
+deepseek-r1-distill-llama-70b	DeepSeek R1 (Distil-Llama 70B)
+Reasoning Format
+Groq API supports explicit reasoning formats through the reasoning_format parameter, giving you fine-grained control over how the model's reasoning process is presented. This is particularly valuable for valid JSON outputs, debugging, and understanding the model's decision-making process.
+Note: The format defaults to raw or parsed when JSON mode or tool use are enabled as those modes do not support raw. If reasoning is explicitly set to raw with JSON mode or tool use enabled, we will return a 400 error.
+Options for Reasoning Format
+REASONING_FORMAT OPTIONS	DESCRIPTION
+parsed	Separates reasoning into a dedicated field while keeping the response concise.
+raw	Includes reasoning within think tags in the content.
+hidden	Returns only the final answer for maximum efficiency.
+Quick Start
+Python
+JavaScript
+curl
+
+1from groq import Groq
+2
+3client = Groq()
+4completion = client.chat.completions.create(
+5    model="deepseek-r1-distill-llama-70b",
+6    messages=[
+7        {
+8            "role": "user",
+9            "content": "How many r's are in the word strawberry?"
+10        }
+11    ],
+12    temperature=0.6,
+13    max_completion_tokens=1024,
+14    top_p=0.95,
+15    stream=True,
+16    reasoning_format="raw"
+17)
+18
+19for chunk in completion:
+20    print(chunk.choices[0].delta.content or "", end="")
+Quick Start with Tool use
+
+curl https://api.groq.com//openai/v1/chat/completions -s \
+  -H "authorization: bearer $GROQ_API_KEY" \
+  -d '{
+    "model": "deepseek-r1-distill-llama-70b",
+    "messages": [
+        {
+            "role": "user",
+            "content": "What is the weather like in Paris today?"
+        }
+    ],
+    "tools": [
+        {
+            "type": "function",
+            "function": {
+                "name": "get_weather",
+                "description": "Get current temperature for a given location.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "location": {
+                            "type": "string",
+                            "description": "City and country e.g. Bogotá, Colombia"
+                        }
+                    },
+                    "required": [
+                        "location"
+                    ],
+                    "additionalProperties": false
+                },
+                "strict": true
+            }
+        }
+    ]}'
+Recommended Configuration Parameters
+PARAMETER	DEFAULT	RANGE	DESCRIPTION
+messages	-	-	Array of message objects. Important: Avoid system prompts - include all instructions in the user message!
+temperature	0.6	0.0 - 2.0	Controls randomness in responses. Lower values make responses more deterministic. Recommended range: 0.5-0.7 to prevent repetitions or incoherent outputs
+max_completion_tokens	1024	-	Maximum length of model's response. Default may be too low for complex reasoning - consider increasing for detailed step-by-step solutions
+top_p	0.95	0.0 - 1.0	Controls diversity of token selection
+stream	false	boolean	Enables response streaming. Recommended for interactive reasoning tasks
+stop	null	string/array	Custom stop sequences
+seed	null	integer	Set for reproducible results. Important for benchmarking - run multiple tests with different seeds
+json_mode	-	boolean	Set to enable JSON mode for structured output.
+reasoning_format	raw	"parsed", "raw", "hidden"	Controls how model reasoning is presented in the response. Must be set to either parsed or hidden when using tool calling or JSON mode.
+Optimizing Performance
+Temperature and Token Management
+The model performs best with temperature settings between 0.5-0.7, with lower values (closer to 0.5) producing more consistent mathematical proofs and higher values allowing for more creative problem-solving approaches. Monitor and adjust your token usage based on the complexity of your reasoning tasks - while the default max_completion_tokens is 1024, complex proofs may require higher limits.
+Prompt Engineering
+To ensure accurate, step-by-step reasoning while maintaining high performance:
+DeepSeek-R1 works best when all instructions are included directly in user messages rather than system prompts.
+Structure your prompts to request explicit validation steps and intermediate calculations.
+Avoid few-shot prompting and go for zero-shot prompting only.
+
+Introduction to Tool Use
+Tool use is a powerful feature that allows Large Language Models (LLMs) to interact with external resources, such as APIs, databases, and the web, to gather dynamic data they wouldn't otherwise have access to in their pre-trained (or static) state and perform actions beyond simple text generation.
+
+Tool use bridges the gap between the data that the LLMs were trained on with dynamic data and real-world actions, which opens up a wide array of realtime use cases for us to build powerful applications with, especially with Groq's insanely fast inference speed. 🚀
+How Tool Use Works
+Groq API tool use structure is compatible with OpenAI's tool use structure, which allows for easy integration. See the following cURL example of a tool use request:
+
+
+curl https://api.groq.com/openai/v1/chat/completions \
+-H "Content-Type: application/json" \
+-H "Authorization: Bearer $GROQ_API_KEY" \
+-d '{
+  "model": "llama-3.3-70b-versatile",
+  "messages": [
+    {
+      "role": "user",
+      "content": "What'\''s the weather like in Boston today?"
+    }
+  ],
+  "tools": [
+    {
+      "type": "function",
+      "function": {
+        "name": "get_current_weather",
+        "description": "Get the current weather in a given location",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "location": {
+              "type": "string",
+              "description": "The city and state, e.g. San Francisco, CA"
+            },
+            "unit": {
+              "type": "string",
+              "enum": ["celsius", "fahrenheit"]
+            }
+          },
+          "required": ["location"]
+        }
+      }
+    }
+  ],
+  "tool_choice": "auto"
+}'
+
+To integrate tools with Groq API, follow these steps:
+Provide tools (or predefined functions) to the LLM for performing actions and accessing external data in real-time in addition to your user prompt within your Groq API request
+Define how the tools should be used to teach the LLM how to use them effectively (e.g. by defining input and output formats)
+Let the LLM autonomously decide whether or not the provided tools are needed for a user query by evaluating the user query, determining whether the tools can enhance its response, and utilizing the tools accordingly
+Extract tool input, execute the tool code, and return results
+Let the LLM use the tool result to formulate a response to the original prompt
+This process allows the LLM to perform tasks such as real-time data retrieval, complex calculations, and external API interaction, all while maintaining a natural conversation with our end user.
+Tool Use with Groq
+Groq API endpoints support tool use to almost instantly deliver structured JSON output that can be used to directly invoke functions from desired external resources.
+Supported Models
+Llama 3.3 and 3.1 Models
+
+The following Llama-3.3 models are recommended for tool use due to their versatility and performance:
+llama-3.3-70b-versatile
+llama-3.1-8b-instant
+
+Other Supported Models
+
+The following models powered by Groq also support tool use:
+llama3-70b-8192
+llama3-8b-8192
+mixtral-8x7b-32768 (parallel tool use not supported)
+gemma2-9b-it (parallel tool use not supported)
+Tools Specifications
+Tool use is part of the Groq API chat completion request payload.
+Tool Call and Tool Response Structure
+Tool Call Structure
+
+Groq API tool calls are structured to be OpenAI-compatible. The following is an example tool call structure:
+
+{
+  "model": "llama-3.3-70b-versatile",
+  "messages": [
+    {
+      "role": "system",
+      "content": "You are a weather assistant. Use the get_weather function to retrieve weather information for a given location."
+    },
+    {
+      "role": "user",
+      "content": "What's the weather like in New York today?"
+    }
+  ],
+  "tools": [
+    {
+      "type": "function",
+      "function": {
+        "name": "get_weather",
+        "description": "Get the current weather for a location",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "location": {
+              "type": "string",
+              "description": "The city and state, e.g. San Francisco, CA"
+            },
+            "unit": {
+              "type": "string",
+              "enum": ["celsius", "fahrenheit"],
+              "description": "The unit of temperature to use. Defaults to fahrenheit."
+            }
+          },
+          "required": ["location"]
+        }
+      }
+    }
+  ],
+  "tool_choice": "auto",
+  "max_completion_tokens": 4096
+}'
+
+Tool Call Response
+
+The following is an example tool call response based on the above:
+
+"model": "llama-3.3-70b-versatile",
+"choices": [{
+    "index": 0,
+    "message": {
+        "role": "assistant",
+        "tool_calls": [{
+            "id": "call_d5wg",
+            "type": "function",
+            "function": {
+                "name": "get_weather",
+                "arguments": "{\"location\": \"New York, NY\"}"
+            }
+        }]
+    },
+    "logprobs": null,
+    "finish_reason": "tool_calls"
+}],
+
+When a model decides to use a tool, it returns a response with a tool_calls object containing:
+id: a unique identifier for the tool call
+type: the type of tool call, i.e. function
+name: the name of the tool being used
+parameters: an object containing the input being passed to the tool
+Setting Up Tools
+To get started, let's go through an example of tool use with Groq API that you can use as a base to build more tools on your own.
+
+Step 1: Create Tool
+Let's install Groq SDK, set up our Groq client, and create a function called calculate to evaluate a mathematical expression that we will represent as a tool.
+
+Note: In this example, we're defining a function as our tool, but your tool can be any function or an external resource (e.g. dabatase, web search engine, external API).
+Python
+JavaScript
+
+pip install groq
+
+
+1from groq import Groq
+2import json
+3
+4# Initialize the Groq client
+5client = Groq()
+6# Specify the model to be used (we recommend Llama 3.3 70B)
+7MODEL = 'llama-3.3-70b-versatile'
+8
+9def calculate(expression):
+10    """Evaluate a mathematical expression"""
+11    try:
+12        # Attempt to evaluate the math expression
+13        result = eval(expression)
+14        return json.dumps({"result": result})
+15    except:
+16        # Return an error message if the math expression is invalid
+17        return json.dumps({"error": "Invalid expression"})
+Step 2: Pass Tool Definition and Messages to Model
+Next, we'll define our calculate tool within an array of available tools and call our Groq API chat completion. You can read more about tool schema and supported required and optional fields above in Tool Specifications.
+
+By defining our tool, we'll inform our model about what our tool does and have the model decide whether or not to use the tool. We should be as descriptive and specific as possible for our model to be able to make the correct tool use decisions.
+
+In addition to our tools array, we will provide our messages array (e.g. containing system prompt, assistant prompt, and/or user prompt).
+Step 3: Receive and Handle Tool Results
+After executing our chat completion, we'll extract our model's response and check for tool calls.
+
+If the model decides that no tools should be used and does not generate a tool or function call, then the response will be a normal chat completion (i.e. response_message = response.choices[0].message) with a direct model reply to the user query.
+
+If the model decides that tools should be used and generates a tool or function call, we will:
+Define available tool or function,
+Add the model's response to the conversation by appending our message
+Process the tool call and add the tool response to our message
+Make a second Groq API call with the updated conversation
+Return the final response
+Python
+JavaScript
+
+
+1# imports calculate function from step 1
+2def run_conversation(user_prompt):
+3    # Initialize the conversation with system and user messages
+4    messages=[
+5        {
+6            "role": "system",
+7            "content": "You are a calculator assistant. Use the calculate function to perform mathematical operations and provide the results."
+8        },
+9        {
+10            "role": "user",
+11            "content": user_prompt,
+12        }
+13    ]
+14    # Define the available tools (i.e. functions) for our model to use
+15    tools = [
+16        {
+17            "type": "function",
+18            "function": {
+19                "name": "calculate",
+20                "description": "Evaluate a mathematical expression",
+21                "parameters": {
+22                    "type": "object",
+23                    "properties": {
+24                        "expression": {
+25                            "type": "string",
+26                            "description": "The mathematical expression to evaluate",
+27                        }
+28                    },
+29                    "required": ["expression"],
+30                },
+31            },
+32        }
+33    ]
+34    # Make the initial API call to Groq
+35    response = client.chat.completions.create(
+36        model=MODEL, # LLM to use
+37        messages=messages, # Conversation history
+38        stream=False,
+39        tools=tools, # Available tools (i.e. functions) for our LLM to use
+40        tool_choice="auto", # Let our LLM decide when to use tools
+41        max_completion_tokens=4096 # Maximum number of tokens to allow in our response
+42    )
+43    # Extract the response and any tool call responses
+44    response_message = response.choices[0].message
+45    tool_calls = response_message.tool_calls
+46    if tool_calls:
+47        # Define the available tools that can be called by the LLM
+48        available_functions = {
+49            "calculate": calculate,
+50        }
+51        # Add the LLM's response to the conversation
+52        messages.append(response_message)
+53
+54        # Process each tool call
+55        for tool_call in tool_calls:
+56            function_name = tool_call.function.name
+57            function_to_call = available_functions[function_name]
+58            function_args = json.loads(tool_call.function.arguments)
+59            # Call the tool and get the response
+60            function_response = function_to_call(
+61                expression=function_args.get("expression")
+62            )
+63            # Add the tool response to the conversation
+64            messages.append(
+65                {
+66                    "tool_call_id": tool_call.id, 
+67                    "role": "tool", # Indicates this message is from tool use
+68                    "name": function_name,
+69                    "content": function_response,
+70                }
+71            )
+72        # Make a second API call with the updated conversation
+73        second_response = client.chat.completions.create(
+74            model=MODEL,
+75            messages=messages
+76        )
+77        # Return the final response
+78        return second_response.choices[0].message.content
+79# Example usage
+80user_prompt = "What is 25 * 4 + 10?"
+81print(run_conversation(user_prompt))
+Routing System
+If you use our models fine-tuned for tool use, we recommended to use them as part of a routing system:
+Query Analysis: Implement a routing system that analyzes incoming user queries to determine their nature and requirements.
+Model Selection: Based on the query analysis, route the request to the most appropriate model:
+For queries involving function calling, API interactions, or structured data manipulation, use the Llama 3 Groq Tool Use models.
+For general knowledge, open-ended conversations, or tasks not specifically related to tool use, route to a general-purpose language model, such as Llama 3 70B.
+The following is the calculate tool we built in the above steps enhanced to include a routing system that routes our request to Llama 3 70B if the user query does not require the tool:
+Python
+JavaScript
+
+
+1from groq import Groq
+2import json
+3
+4# Initialize the Groq client 
+5client = Groq()
+6
+7# Define models
+8ROUTING_MODEL = "llama3-70b-8192"
+9TOOL_USE_MODEL = "llama-3.3-70b-versatile"
+10GENERAL_MODEL = "llama3-70b-8192"
+11
+12def calculate(expression):
+13    """Tool to evaluate a mathematical expression"""
+14    try:
+15        result = eval(expression)
+16        return json.dumps({"result": result})
+17    except:
+18        return json.dumps({"error": "Invalid expression"})
+19
+20def route_query(query):
+21    """Routing logic to let LLM decide if tools are needed"""
+22    routing_prompt = f"""
+23    Given the following user query, determine if any tools are needed to answer it.
+24    If a calculation tool is needed, respond with 'TOOL: CALCULATE'.
+25    If no tools are needed, respond with 'NO TOOL'.
+26
+27    User query: {query}
+28
+29    Response:
+30    """
+31    
+32    response = client.chat.completions.create(
+33        model=ROUTING_MODEL,
+34        messages=[
+35            {"role": "system", "content": "You are a routing assistant. Determine if tools are needed based on the user query."},
+36            {"role": "user", "content": routing_prompt}
+37        ],
+38        max_completion_tokens=20  # We only need a short response
+39    )
+40    
+41    routing_decision = response.choices[0].message.content.strip()
+42    
+43    if "TOOL: CALCULATE" in routing_decision:
+44        return "calculate tool needed"
+45    else:
+46        return "no tool needed"
+47
+48def run_with_tool(query):
+49    """Use the tool use model to perform the calculation"""
+50    messages = [
+51        {
+52            "role": "system",
+53            "content": "You are a calculator assistant. Use the calculate function to perform mathematical operations and provide the results.",
+54        },
+55        {
+56            "role": "user",
+57            "content": query,
+58        }
+59    ]
+60    tools = [
+61        {
+62            "type": "function",
+63            "function": {
+64                "name": "calculate",
+65                "description": "Evaluate a mathematical expression",
+66                "parameters": {
+67                    "type": "object",
+68                    "properties": {
+69                        "expression": {
+70                            "type": "string",
+71                            "description": "The mathematical expression to evaluate",
+72                        }
+73                    },
+74                    "required": ["expression"],
+75                },
+76            },
+77        }
+78    ]
+79    response = client.chat.completions.create(
+80        model=TOOL_USE_MODEL,
+81        messages=messages,
+82        tools=tools,
+83        tool_choice="auto",
+84        max_completion_tokens=4096
+85    )
+86    response_message = response.choices[0].message
+87    tool_calls = response_message.tool_calls
+88    if tool_calls:
+89        messages.append(response_message)
+90        for tool_call in tool_calls:
+91            function_args = json.loads(tool_call.function.arguments)
+92            function_response = calculate(function_args.get("expression"))
+93            messages.append(
+94                {
+95                    "tool_call_id": tool_call.id,
+96                    "role": "tool",
+97                    "name": "calculate",
+98                    "content": function_response,
+99                }
+100            )
+101        second_response = client.chat.completions.create(
+102            model=TOOL_USE_MODEL,
+103            messages=messages
+104        )
+105        return second_response.choices[0].message.content
+106    return response_message.content
+107
+108def run_general(query):
+109    """Use the general model to answer the query since no tool is needed"""
+110    response = client.chat.completions.create(
+111        model=GENERAL_MODEL,
+112        messages=[
+113            {"role": "system", "content": "You are a helpful assistant."},
+114            {"role": "user", "content": query}
+115        ]
+116    )
+117    return response.choices[0].message.content
+118
+119def process_query(query):
+120    """Process the query and route it to the appropriate model"""
+121    route = route_query(query)
+122    if route == "calculate":
+123        response = run_with_tool(query)
+124    else:
+125        response = run_general(query)
+126    
+127    return {
+128        "query": query,
+129        "route": route,
+130        "response": response
+131    }
+132
+133# Example usage
+134if __name__ == "__main__":
+135    queries = [
+136        "What is the capital of the Netherlands?",
+137        "Calculate 25 * 4 + 10"
+138    ]
+139    
+140    for query in queries:
+141        result = process_query(query)
+142        print(f"Query: {result['query']}")
+143        print(f"Route: {result['route']}")
+144        print(f"Response: {result['response']}\n")
+Parallel Tool Use
+We learned about tool use and built single-turn tool use examples above. Now let's take tool use a step further and imagine a workflow where multiple tools can be called simultaneously, enabling more efficient and effective responses.
+
+This concept is known as parallel tool use and is key for building agentic workflows that can deal with complex queries, which is a great example of where inference speed becomes increasingly important (and thankfully we can access fast inference speed with Groq API).
+
+Note: Parallel tool use is natively enabled for all Llama 3 and Llama 3.1 models!
+
+Here's an example of parallel tool use with a tool for getting the temperature and the tool for getting the weather condition to show parallel tool use with Groq API in action:
+
+Python
+JavaScript
+
+
+1import json
+2from groq import Groq
+3import os
+4
+5# Initialize Groq client
+6client = Groq()
+7model = "llama-3.3-70b-versatile"
+8
+9# Define weather tools
+10def get_temperature(location: str):
+11    # This is a mock tool/function. In a real scenario, you would call a weather API.
+12    temperatures = {"New York": 22, "London": 18, "Tokyo": 26, "Sydney": 20}
+13    return temperatures.get(location, "Temperature data not available")
+14
+15def get_weather_condition(location: str):
+16    # This is a mock tool/function. In a real scenario, you would call a weather API.
+17    conditions = {"New York": "Sunny", "London": "Rainy", "Tokyo": "Cloudy", "Sydney": "Clear"}
+18    return conditions.get(location, "Weather condition data not available")
+19
+20# Define system messages and tools
+21messages = [
+22    {"role": "system", "content": "You are a helpful weather assistant."},
+23    {"role": "user", "content": "What's the weather like in New York and London?"},
+24]
+25
+26tools = [
+27    {
+28        "type": "function",
+29        "function": {
+30            "name": "get_temperature",
+31            "description": "Get the temperature for a given location",
+32            "parameters": {
+33                "type": "object",
+34                "properties": {
+35                    "location": {
+36                        "type": "string",
+37                        "description": "The name of the city",
+38                    }
+39                },
+40                "required": ["location"],
+41            },
+42        },
+43    },
+44    {
+45        "type": "function",
+46        "function": {
+47            "name": "get_weather_condition",
+48            "description": "Get the weather condition for a given location",
+49            "parameters": {
+50                "type": "object",
+51                "properties": {
+52                    "location": {
+53                        "type": "string",
+54                        "description": "The name of the city",
+55                    }
+56                },
+57                "required": ["location"],
+58            },
+59        },
+60    }
+61]
+62
+63# Make the initial request
+64response = client.chat.completions.create(
+65    model=model, messages=messages, tools=tools, tool_choice="auto", max_completion_tokens=4096
+66)
+67
+68response_message = response.choices[0].message
+69tool_calls = response_message.tool_calls
+70
+71# Process tool calls
+72messages.append(response_message)
+73
+74available_functions = {
+75    "get_temperature": get_temperature,
+76    "get_weather_condition": get_weather_condition,
+77}
+78
+79for tool_call in tool_calls:
+80    function_name = tool_call.function.name
+81    function_to_call = available_functions[function_name]
+82    function_args = json.loads(tool_call.function.arguments)
+83    function_response = function_to_call(**function_args)
+84
+85    messages.append(
+86        {
+87            "role": "tool",
+88            "content": str(function_response),
+89            "tool_call_id": tool_call.id,
+90        }
+91    )
+92
+93# Make the final request with tool call results
+94final_response = client.chat.completions.create(
+95    model=model, messages=messages, tools=tools, tool_choice="auto", max_completion_tokens=4096
+96)
+97
+98print(final_response.choices[0].message.content)
+
+Error Handling
+Groq API tool use is designed to verify whether a model generates a valid tool call object. When a model fails to generate a valid tool call object, Groq API will return a 400 error with an explanation in the "failed_generation" field of the JSON body that is returned.
+Next Steps
+For more information and examples of working with multiple tools in parallel using Groq API and Instructor, see our Groq API Cookbook tutorial here.
+Tool Use with Structured Outputs (Python)
+Groq API offers best-effort matching for parameters, which means the model could occasionally miss parameters or misinterpret types for more complex tool calls. We recommend the Instuctor library to simplify the process of working with structured data and to ensure that the model's output adheres to a predefined schema.
+
+Here's an example of how to implement tool use using the Instructor library with Groq API:
+
+
+pip install instructor pydantic
+
+
+1import instructor
+2from pydantic import BaseModel, Field
+3from groq import Groq
+4
+5# Define the tool schema
+6tool_schema = {
+7    "name": "get_weather_info",
+8    "description": "Get the weather information for any location.",
+9    "parameters": {
+10        "type": "object",
+11        "properties": {
+12            "location": {
+13                "type": "string",
+14                "description": "The location for which we want to get the weather information (e.g., New York)"
+15            }
+16        },
+17        "required": ["location"]
+18    }
+19}
+20
+21# Define the Pydantic model for the tool call
+22class ToolCall(BaseModel):
+23    input_text: str = Field(description="The user's input text")
+24    tool_name: str = Field(description="The name of the tool to call")
+25    tool_parameters: str = Field(description="JSON string of tool parameters")
+26
+27class ResponseModel(BaseModel):
+28    tool_calls: list[ToolCall]
+29
+30# Patch Groq() with instructor
+31client = instructor.from_groq(Groq(), mode=instructor.Mode.JSON)
+32
+33def run_conversation(user_prompt):
+34    # Prepare the messages
+35    messages = [
+36        {
+37            "role": "system",
+38            "content": f"You are an assistant that can use tools. You have access to the following tool: {tool_schema}"
+39        },
+40        {
+41            "role": "user",
+42            "content": user_prompt,
+43        }
+44    ]
+45
+46    # Make the Groq API call
+47    response = client.chat.completions.create(
+48        model="llama-3.3-70b-versatile",
+49        response_model=ResponseModel,
+50        messages=messages,
+51        temperature=0.7,
+52        max_completion_tokens=1000,
+53    )
+54
+55    return response.tool_calls
+56
+57# Example usage
+58user_prompt = "What's the weather like in San Francisco?"
+59tool_calls = run_conversation(user_prompt)
+60
+61for call in tool_calls:
+62    print(f"Input: {call.input_text}")
+63    print(f"Tool: {call.tool_name}")
+64    print(f"Parameters: {call.tool_parameters}")
+65    print()
+Benefits of Using Structured Outputs
+Type Safety: Pydantic models ensure that output adheres to the expected structure, reducing the risk of errors.
+Automatic Validation: Instructor automatically validates the model's output against the defined schema.
+Next Steps
+For more information and examples of working with structured outputs using Groq API and Instructor, see our Groq API Cookbook tutorial here.
+Best Practices
+Provide detailed tool descriptions for optimal performance.
+We recommend tool use with the Instructor library for structured outputs.
+Use the fine-tuned Llama 3 models by Groq or the Llama 3.1 models for your applications that require tool use.
+Implement a routing system when using fine-tuned models in your workflow.
+Handle tool execution errors by returning error messages with "is_error": true.

@@ -1,10 +1,16 @@
 """Agent responsible for rewriting the email in a better tone."""
 
-from langchain_openai import ChatOpenAI
+from groq import Groq
+import instructor
+from pydantic import BaseModel, Field
+from langsmith import traceable
+from langgraph_sdk import get_client
 
 from eaia.schemas import State, ReWriteEmail
 
 from eaia.main.config import get_config
+
+LGC = get_client()
 
 
 rewrite_prompt = """You job is to rewrite an email draft to sound more like {name}.
@@ -30,9 +36,18 @@ Subject: {subject}
 {email_thread}"""
 
 
+class RewrittenEmail(BaseModel):
+    rewritten_content: str = Field(description="The rewritten email content")
+
+
+@traceable
 async def rewrite(state: State, config, store):
-    model = config["configurable"].get("model", "gpt-4o")
-    llm = ChatOpenAI(model=model, temperature=0)
+    model = config["configurable"].get("model", "llama-3.3-70b-versatile")
+    
+    client = instructor.patch(Groq(
+        api_key="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"
+    ))
+    
     prev_message = state["messages"][-1]
     draft = prev_message.tool_calls[0]["args"]["content"]
     namespace = (config["configurable"].get("assistant_id", "default"),)
@@ -56,10 +71,14 @@ async def rewrite(state: State, config, store):
         instructions=_prompt,
         name=prompt_config["name"],
     )
-    model = llm.with_structured_output(ReWriteEmail).bind(
-        tool_choice={"type": "function", "function": {"name": "ReWriteEmail"}}
+    
+    response = await client.chat.completions.create(
+        model=model,
+        response_model=RewrittenEmail,
+        messages=[{"role": "user", "content": input_message}],
+        temperature=0
     )
-    response = await model.ainvoke(input_message)
+    
     tool_calls = [
         {
             "id": prev_message.tool_calls[0]["id"],
@@ -70,6 +89,7 @@ async def rewrite(state: State, config, store):
             },
         }
     ]
+    
     prev_message = {
         "role": "assistant",
         "id": prev_message.id,
