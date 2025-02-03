@@ -5,6 +5,7 @@ import instructor
 from pydantic import BaseModel, Field
 from langsmith import traceable
 from langgraph_sdk import get_client
+import os
 
 from eaia.schemas import State, ReWriteEmail
 
@@ -45,7 +46,7 @@ async def rewrite(state: State, config, store):
     model = config["configurable"].get("model", "llama-3.3-70b-versatile")
     
     client = instructor.patch(Groq(
-        api_key="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"
+        api_key=os.getenv("GROQ_API_KEY"),
     ))
     
     prev_message = state["messages"][-1]

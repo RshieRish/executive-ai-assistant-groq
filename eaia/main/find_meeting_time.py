@@ -8,6 +8,7 @@ from typing import List
 import uuid
 from langsmith import traceable
 from langgraph_sdk import get_client
+import os
 
 from langchain_core.messages import ToolMessage
 from langchain_core.runnables import RunnableConfig

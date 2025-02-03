@@ -9,6 +9,7 @@ from groq import Groq
 from pydantic import BaseModel
 from langsmith import traceable
 from langgraph_sdk import get_client
+import os
 
 from eaia.schemas import (
     State,
@@ -59,7 +60,7 @@ async def triage_input(state: State, config: RunnableConfig, store: BaseStore):
     llm = ChatGroq(
         model=model,
         temperature=0,
-        api_key="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"
+        api_key=os.getenv("GROQ_API_KEY"),
     )
     examples = await get_few_shot_examples(state["email"], store, config)
     prompt_config = get_config(config)

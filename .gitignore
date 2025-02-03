@@ -1,11 +1,17 @@
-# Environment variables
+# Environment variables and secrets
 .env
 *.env
+.env.*
+!.env.example
 
-# Secrets
+# Secrets and credentials
 .secrets/
 */.secrets/
 **/.secrets/
+**/secrets.json
+**/token.json
+credentials.json
+client_secret*.json
 
 # Python
 __pycache__/

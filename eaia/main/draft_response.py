@@ -10,6 +10,7 @@ from pydantic import BaseModel, Field
 from typing import List, Optional
 from langsmith import traceable
 from langgraph_sdk import get_client
+import os
 
 from eaia.schemas import (
     State,
@@ -114,9 +115,9 @@ async def draft_response(state: State, config: RunnableConfig, store: BaseStore)
     model = config["configurable"].get("model", "llama-3.3-70b-versatile")
     
     # Use instructor for structured output
-    client = instructor.patch(Groq(
-        api_key="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"
-    ))
+    client = Groq(
+        api_key=os.getenv("GROQ_API_KEY"),
+    )
     
     tools = [
         NewEmailDraft,
