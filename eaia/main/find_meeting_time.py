@@ -82,13 +82,13 @@ async def find_meeting_time(state: State, config: RunnableConfig):
     model = config["configurable"].get("model", "llama-3.3-70b-versatile")
     
     client = instructor.patch(Groq(
-        api_key="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"
+        api_key=os.getenv("GROQ_API_KEY")
     ))
     
     agent = create_react_agent(ChatGroq(
         model=model,
         temperature=0,
-        api_key="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"
+        api_key=os.getenv("GROQ_API_KEY")
     ), [get_events_for_days])
     current_date = datetime.now()
     prompt_config = get_config(config)
